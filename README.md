@@ -4,15 +4,10 @@
 ![Dubins path visualization](dubins.png)
 
 ## Running
-### Requirements
-
-This project requires [SFML](https://www.sfml-dev.org/) (Simple and Fast Multimedia Library) installed.
-
-On Ubuntu, you can install SFML with:
+On Ubuntu:
 ```bash
 sudo apt-get install libsfml-dev
 ```
-
 On macOS (with Homebrew):
 ```bash
 brew install sfml
