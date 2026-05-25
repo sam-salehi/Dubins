@@ -6,6 +6,8 @@ using namespace std;
 
 enum class SegmentType { Left, Right, Straight };
 
+enum class DubinsType { LSL, RSR, LSR, RSL, RLR, LRL };
+
 struct Point {
   int x;
   int y;
@@ -21,6 +23,6 @@ struct Path {
   double length;
 };
 
-Path makeDublin(Point start, Point end, int R);
+Path makeDublin(Point start, Point end, int R, DubinsType type);
 
 #endif
