@@ -31,14 +31,14 @@ float _deg2pi(float deg) {
 }
 
 Bearing getBearing(Point start, Point end, int R) {
-  int dx = end.x - start.x;
-  int dy = end.y - start.y;
-  int D = sqrt(pow(dx, 2) + pow(dy, 2));
-  float d = static_cast<float>(D) / R;
+  float dx = static_cast<float>(end.x - start.x);
+  float dy = -static_cast<float>(end.y - start.y);
+  float D = std::sqrt(dx * dx + dy * dy);
+  float d = D / static_cast<float>(R);
   float theta = std::atan2(dy, dx);
 
-  float alpha = _mod2pi(_deg2pi(start.deg) - theta);
-  float beta = _mod2pi(_deg2pi(end.deg) - theta);
+  float alpha = _mod2pi(_deg2pi(-start.deg) - theta);
+  float beta = _mod2pi(_deg2pi(-end.deg) - theta);
 
   Bearing result = {d, alpha, beta};
   return result;

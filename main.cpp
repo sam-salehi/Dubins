@@ -16,12 +16,14 @@ static float mod2pi(float angle) {
     return angle;
 }
 
-static sf::Vector2f toWorld(float lx, float ly, float thetaLine, float sx, float sy, float R) {
+static sf::Vector2f toWorld(float lx, float ly, float thetaLineMath, float sx, float sy, float R) {
     float wx = lx * R;
     float wy = ly * R;
-    float c = std::cos(thetaLine);
-    float s = std::sin(thetaLine);
-    return sf::Vector2f(sx + wx * c - wy * s, sy + wx * s + wy * c);
+    float c = std::cos(thetaLineMath);
+    float s = std::sin(thetaLineMath);
+    float worldXMath = wx * c - wy * s;
+    float worldYMath = wx * s + wy * c;
+    return sf::Vector2f(sx + worldXMath, sy - worldYMath);
 }
 
 static void applySegment(SegmentType type, float len, float& x, float& y, float& theta) {
@@ -37,8 +39,8 @@ static void applySegment(SegmentType type, float len, float& x, float& y, float&
         theta -= len;
         break;
     case SegmentType::Straight:
-        x += std::sin(theta) * len;
-        y += -std::cos(theta) * len;
+        x += std::cos(theta) * len;
+        y += std::sin(theta) * len;
         break;
     }
 }
@@ -49,9 +51,10 @@ static std::vector<sf::Vector2f> samplePath(const Path& path, Point start, Point
     if (path.segments.size() != 3)
         return points;
 
-    float thetaLine = std::atan2(static_cast<float>(end.y - start.y),
-                                 static_cast<float>(end.x - start.x));
-    float alpha = mod2pi(start.deg * PI / 180.f - thetaLine);
+    float dx = static_cast<float>(end.x - start.x);
+    float dyMath = -static_cast<float>(end.y - start.y);
+    float thetaLine = std::atan2(dyMath, dx);
+    float alpha = mod2pi(-start.deg * PI / 180.f - thetaLine);
 
     float x = 0.f;
     float y = 0.f;
@@ -152,6 +155,16 @@ int main() {
     bool draggingStart = false;
     bool draggingDest  = false;
     int selectedRank = 1;
+    bool showAll = false;
+
+    const sf::Color rankColors[6] = {
+        sf::Color(80, 220, 120),
+        sf::Color(80, 200, 240),
+        sf::Color(240, 220, 80),
+        sf::Color(240, 110, 220),
+        sf::Color(255, 160, 60),
+        sf::Color(160, 170, 255),
+    };
 
     sf::CircleShape src(4.f);
     sf::CircleShape dst(4.f);
@@ -165,8 +178,13 @@ int main() {
         label.setFillColor(sf::Color::White);
     }
 
-    sf::RenderWindow window(sf::VideoMode({1280, 800}), "Dubins Visualizer");
+    const float viewW = 1280.f;
+    const float viewH = 800.f;
+    sf::RenderWindow window(sf::VideoMode({static_cast<unsigned>(viewW),
+                                            static_cast<unsigned>(viewH)}),
+                            "Dubins Visualizer");
     window.setFramerateLimit(60);
+    window.setView(sf::View(sf::FloatRect({0.f, 0.f}, {viewW, viewH})));
 
     while (window.isOpen()) {
         while (const std::optional<sf::Event> event = window.pollEvent()) {
@@ -182,6 +200,10 @@ int main() {
                     selectedRank = 1 + static_cast<int>(key->code) -
                                    static_cast<int>(sf::Keyboard::Key::Num1);
                 }
+
+                if (key->code == sf::Keyboard::Key::Grave) {
+                    showAll = !showAll;
+                }
             }
 
             if (const auto* scroll = event->getIf<sf::Event::MouseWheelScrolled>()) {
@@ -191,16 +213,17 @@ int main() {
             }
 
             if (const auto* press = event->getIf<sf::Event::MouseButtonPressed>()) {
+                sf::Vector2f wp = window.mapPixelToCoords(press->position);
                 if (press->button == sf::Mouse::Button::Left) {
-                    start.x = press->position.x;
-                    start.y = press->position.y;
+                    start.x = static_cast<int>(wp.x);
+                    start.y = static_cast<int>(wp.y);
                     start.deg = 0.f;
                     draggingStart = true;
                     startSet = true;
                 }
                 if (press->button == sf::Mouse::Button::Right) {
-                    dest.x = press->position.x;
-                    dest.y = press->position.y;
+                    dest.x = static_cast<int>(wp.x);
+                    dest.y = static_cast<int>(wp.y);
                     dest.deg = 0.f;
                     draggingDest = true;
                     destSet = true;
@@ -208,16 +231,17 @@ int main() {
             }
 
             if (const auto* release = event->getIf<sf::Event::MouseButtonReleased>()) {
+                sf::Vector2f wp = window.mapPixelToCoords(release->position);
                 if (release->button == sf::Mouse::Button::Left && draggingStart) {
-                    float dx = release->position.x - start.x;
-                    float dy = release->position.y - start.y;
+                    float dx = wp.x - start.x;
+                    float dy = wp.y - start.y;
                     if (std::abs(dx) > 2.f || std::abs(dy) > 2.f)
                         start.deg = std::atan2(dy, dx) * 180.f / PI;
                     draggingStart = false;
                 }
                 if (release->button == sf::Mouse::Button::Right && draggingDest) {
-                    float dx = release->position.x - dest.x;
-                    float dy = release->position.y - dest.y;
+                    float dx = wp.x - dest.x;
+                    float dy = wp.y - dest.y;
                     if (std::abs(dx) > 2.f || std::abs(dy) > 2.f)
                         dest.deg = std::atan2(dy, dx) * 180.f / PI;
                     draggingDest = false;
@@ -225,7 +249,7 @@ int main() {
             }
         }
 
-        sf::Vector2i mouse = sf::Mouse::getPosition(window);
+        sf::Vector2f mouse = window.mapPixelToCoords(sf::Mouse::getPosition(window));
 
         window.clear(sf::Color(30, 30, 40));
 
@@ -280,18 +304,43 @@ int main() {
                 if (idx < 0)
                     idx = 0;
 
-                const RankedPath& chosen = paths[idx];
-                std::vector<sf::Vector2f> points = samplePath(chosen.path, liveStart, liveDest,
-                                                               static_cast<float>(R));
-                drawPath(window, points, sf::Color(80, 220, 120));
+                if (showAll) {
+                    for (std::size_t i = 0; i < paths.size(); ++i) {
+                        std::vector<sf::Vector2f> points = samplePath(
+                            paths[i].path, liveStart, liveDest, static_cast<float>(R));
+                        drawPath(window, points, rankColors[i % 6]);
+                    }
 
-                if (hasFont) {
-                    std::ostringstream oss;
-                    oss << chosen.name << "  " << static_cast<int>(chosen.path.length) << " px";
-                    label.setString(oss.str());
-                    sf::FloatRect bounds = label.getLocalBounds();
-                    label.setPosition({1280.f - bounds.size.x - 16.f, 16.f});
-                    window.draw(label);
+                    if (hasFont) {
+                        float yOff = 16.f;
+                        for (std::size_t i = 0; i < paths.size(); ++i) {
+                            std::ostringstream oss;
+                            oss << (i + 1) << ". " << paths[i].name << "  "
+                                << static_cast<int>(paths[i].path.length) << " px";
+                            label.setString(oss.str());
+                            label.setFillColor(rankColors[i % 6]);
+                            sf::FloatRect bounds = label.getLocalBounds();
+                            label.setPosition({viewW - bounds.size.x - 16.f, yOff});
+                            window.draw(label);
+                            yOff += bounds.size.y + 10.f;
+                        }
+                    }
+                } else {
+                    const RankedPath& chosen = paths[idx];
+                    std::vector<sf::Vector2f> points = samplePath(
+                        chosen.path, liveStart, liveDest, static_cast<float>(R));
+                    drawPath(window, points, rankColors[idx % 6]);
+
+                    if (hasFont) {
+                        std::ostringstream oss;
+                        oss << chosen.name << "  " << static_cast<int>(chosen.path.length)
+                            << " px";
+                        label.setString(oss.str());
+                        label.setFillColor(rankColors[idx % 6]);
+                        sf::FloatRect bounds = label.getLocalBounds();
+                        label.setPosition({viewW - bounds.size.x - 16.f, 16.f});
+                        window.draw(label);
+                    }
                 }
             }
         }
