@@ -4,25 +4,6 @@
 
 static const float PI = 3.14159265f;
 
-void drawTurningCircles(sf::RenderWindow& window, float x, float y, float deg, float R, sf::Color color) {
-    float rad = deg * PI / 180.f;
-    // perpendicular right: (sin(rad), -cos(rad)), left: (-sin(rad), cos(rad))
-    float px = std::sin(rad);
-    float py = -std::cos(rad);
-
-    sf::CircleShape circle(R);
-    circle.setFillColor(sf::Color::Transparent);
-    circle.setOutlineColor(color);
-    circle.setOutlineThickness(1.f);
-    circle.setOrigin(R, R);
-
-    circle.setPosition(x + R * px, y + R * py);
-    window.draw(circle);
-
-    circle.setPosition(x - R * px, y - R * py);
-    window.draw(circle);
-}
-
 void drawArrow(sf::RenderWindow& window, float x, float y, float deg, sf::Color color) {
     float rad = deg * PI / 180.f;
     float len = 30.f;
@@ -58,7 +39,7 @@ int main() {
     sf::CircleShape src(4.f);
     sf::CircleShape dst(4.f);
 
-    float R = 50.f;
+    int R = 10;
 
     sf::RenderWindow window(sf::VideoMode(1280, 800), "Dubins Visualizer");
     window.setFramerateLimit(60);
@@ -70,11 +51,6 @@ int main() {
                 window.close();
             if (event.type == sf::Event::KeyPressed && event.key.code == sf::Keyboard::Escape)
                 window.close();
-
-            if (event.type == sf::Event::MouseWheelScrolled) {
-                R += event.mouseWheelScroll.delta * 5.f;
-                if (R < 5.f) R = 5.f;
-            }
 
             if (event.type == sf::Event::MouseButtonPressed) {
                 if (event.mouseButton.button == sf::Mouse::Left) {
@@ -129,7 +105,6 @@ int main() {
                     deg = std::atan2(dy, dx) * 180.f / PI;
             }
             drawArrow(window, start.x, start.y, deg, sf::Color::White);
-            drawTurningCircles(window, start.x, start.y, deg, R, sf::Color::White);
         }
 
         if (destSet) {
@@ -146,7 +121,6 @@ int main() {
                     deg = std::atan2(dy, dx) * 180.f / PI;
             }
             drawArrow(window, dest.x, dest.y, deg, sf::Color::Red);
-            drawTurningCircles(window, dest.x, dest.y, deg, R, sf::Color::Red);
         }
 
         window.display();
@@ -154,3 +128,19 @@ int main() {
 
     return 0;
 }
+
+
+/* 
+  1. Implement makeDublin in dublin.cpp — compute all 6 Dubins path types (LSL, RSR, LSR, RSL, RLR, LRL), each returning a Path with its total length.
+  2. New file dubins_paths.h/.cpp — a function that calls makeDublin for all 6 types, filters out invalid ones, and returns them sorted shortest to longest.
+  3. Update main.cpp:
+    - Keys 1–6 select a path (sorted rank)
+    - Draw the selected path by stepping through its segments (arcs and straight lines) as actual curves on screen
+    - Top-right label showing path type name (e.g. "LSL") and distance in pixels
+    - The circles and arrows already on screen stay; the path draws on top
+
+  The 6 Dubins types cover all combinations of Left-turn, Right-turn, and Straight segments for a car with minimum turning radius R — that's what the circles represent.
+
+  Want me to go ahead?
+  
+  */
